@@ -1,16 +1,21 @@
-# React + Vite
+# react_yunkyung
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+TAVE React 스터디 1주차 과제 — React 투두리스트
 
-Currently, two official plugins are available:
+## 실행
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```bash
+npm install
+npm run dev   # http://localhost:5173
+```
 
-## React Compiler
+## 구조
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+```
+src/
+├── App.jsx                  todos 상태 관리, 자식에게 props로 전달
+└── components/
+    ├── TextInput.jsx        할 일 입력 (글자 수 표시, 20자 제한, Enter/버튼으로 추가)
+    ├── TaskList.jsx         할 일 목록 (완료 토글 → 취소선, 삭제)
+    └── UserProfile.jsx      Random User API 호출 + 새로고침
+```
