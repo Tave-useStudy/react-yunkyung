@@ -1,0 +1,80 @@
+.app {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+  text-align: left;
+}
+
+.text-input {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.text-input input {
+  padding: 0.5rem;
+  font-size: 1rem;
+}
+
+.text-input .count,
+.text-input .warning {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.count.over,
+.warning {
+  color: #e5484d;
+}
+
+.task-list {
+  list-style: none;
+  padding: 0;
+  margin: 1.5rem 0;
+}
+
+.task {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #444;
+}
+
+.task-text {
+  flex: 1;
+}
+
+.task.done .task-text {
+  text-decoration: line-through;
+  opacity: 0.5;
+}
+
+.empty {
+  margin: 1.5rem 0;
+  opacity: 0.6;
+}
+
+.user-profile {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #444;
+}
+
+.user-card img {
+  border-radius: 50%;
+  width: 128px;
+  height: 128px;
+}
+
+.user-name {
+  font-weight: bold;
+  margin: 0.5rem 0 0;
+}
+
+.user-email {
+  margin: 0.25rem 0 1rem;
+  opacity: 0.8;
+}
