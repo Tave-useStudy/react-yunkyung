@@ -5,25 +5,6 @@
   text-align: left;
 }
 
-.text-input {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 0.5rem;
-  align-items: center;
-}
-
-.text-input input {
-  padding: 0.5rem;
-  font-size: 1rem;
-}
-
-.text-input .count,
-.text-input .warning {
-  grid-column: 1 / -1;
-  margin: 0;
-  font-size: 0.85rem;
-}
-
 .count.over,
 .warning {
   color: #e5484d;
@@ -47,6 +28,12 @@
   flex: 1;
 }
 
+/* 아직 안 한 일은 선명하게 (다크 모드: 흰색, 라이트 모드: 진한 검정) */
+.task:not(.done) .task-text {
+  color: var(--text-h);
+  font-weight: 500;
+}
+
 .task.done .task-text {
   text-decoration: line-through;
   opacity: 0.5;
@@ -57,24 +44,347 @@
   opacity: 0.6;
 }
 
-.user-profile {
-  margin-top: 2rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid #444;
+/* ---------- 2주차 추가 ---------- */
+
+.app {
+  max-width: 560px;
 }
 
-.user-card img {
-  border-radius: 50%;
-  width: 128px;
-  height: 128px;
+.app-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
 }
 
-.user-name {
+.app-nav {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.app-nav a {
+  color: var(--text);
+  text-decoration: none;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+}
+
+.app-nav a.active {
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+/* 입력 */
+.text-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.text-field input {
+  padding: 0.5rem;
+  font-size: 1rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.text-field .count,
+.text-field .warning {
+  font-size: 0.85rem;
+}
+
+.text-input-options,
+.task-edit-options,
+.toolbar,
+.detail-actions,
+.settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.5rem;
+}
+
+.toolbar {
+  margin: 1rem 0 0.5rem;
+  font-size: 0.9rem;
+}
+
+.toolbar label,
+.settings label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+/* 탭 */
+.filter-tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin-top: 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+  color: var(--text);
+}
+
+.tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.tab-count {
+  opacity: 0.6;
+  font-size: 0.85em;
+}
+
+/* 목록 */
+.task-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.task-text {
+  color: inherit;
+  text-decoration: none;
+}
+
+.task-text:hover {
+  text-decoration: underline;
+}
+
+.badge {
+  font-size: 0.75rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+
+/* 상세 */
+.detail h2.done {
+  text-decoration: line-through;
+  opacity: 0.5;
+}
+
+.detail-info {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.4rem 1rem;
+  margin: 1rem 0;
+}
+
+.detail-info dt {
+  opacity: 0.6;
+}
+
+.detail-info dd {
+  margin: 0;
+}
+
+/* 설정 */
+.settings h3 {
+  margin: 1.5rem 0 0.5rem;
+  font-size: 1rem;
+  color: var(--text-h);
+}
+
+.settings label {
+  margin-bottom: 0.5rem;
+}
+
+
+/* 달력 */
+.calendar-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 1.5rem 0 1rem;
+}
+
+.calendar-head h2 {
+  flex: 1;
+  margin: 0;
+  font-size: 1.25rem;
+  text-align: center;
+}
+
+.nav-btn {
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: none;
+  color: var(--text-h);
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.calendar-weekday {
+  padding-bottom: 0.25rem;
+  font-size: 0.8rem;
+  text-align: center;
+  opacity: 0.7;
+}
+
+.calendar-weekday:first-child,
+.calendar-day.sun .day-num {
+  color: #e5484d;
+}
+
+.calendar-weekday:nth-child(7),
+.calendar-day.sat .day-num {
+  color: #3b82f6;
+}
+
+.calendar-day {
+  height: 3.25rem;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.35rem 0.1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: none;
+  color: var(--text-h);
+  font: inherit;
+  cursor: pointer;
+}
+
+.calendar-day:hover {
+  border-color: var(--accent);
+}
+
+.calendar-day.today {
+  background: var(--accent-bg);
+  border-color: var(--accent);
+}
+
+.calendar-day.today .day-num {
   font-weight: bold;
-  margin: 0.5rem 0 0;
 }
 
-.user-email {
-  margin: 0.25rem 0 1rem;
-  opacity: 0.8;
+.calendar-day.selected {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* 달력 아래 선택한 날의 할 일 */
+.day-todos {
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border);
+}
+
+.day-title {
+  margin: 0 0 0.75rem;
+  font-size: 1.1rem;
+}
+
+.primary-btn {
+  width: 100%;
+  padding: 0.7rem;
+  border: none;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.primary-btn:hover {
+  opacity: 0.9;
+}
+
+.day-count {
+  min-width: 1.2rem;
+  padding: 0 0.3rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.7rem;
+  line-height: 1.2rem;
+}
+
+.day-count.all-done {
+  background: none;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+}
+
+/* 아이콘 버튼 */
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.3rem;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.icon-btn.delete:hover {
+  color: #e5484d;
+  background: rgba(229, 72, 77, 0.12);
+}
+
+/* 세부사항 */
+.memo-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.memo-field textarea {
+  padding: 0.5rem;
+  font: inherit;
+  font-size: 1rem;
+  resize: vertical;
+}
+
+.memo-field .count {
+  align-self: flex-end;
+  font-size: 0.85rem;
+}
+
+.memo-title {
+  margin: 1.25rem 0 0.5rem;
+  font-size: 1rem;
+  color: var(--text-h);
+}
+
+.memo {
+  margin: 0 0 1rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-h);
+  white-space: pre-wrap; /* 줄바꿈을 그대로 보여준다 */
+  overflow-wrap: anywhere;
+}
+
+.memo.empty {
+  color: var(--text);
+  opacity: 0.7;
 }
