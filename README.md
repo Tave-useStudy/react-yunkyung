@@ -632,3 +632,338 @@ apiTodos.filter((todo) => !importedIds.has(todo.id))
 - **불변성 유지** — reducer의 모든 분기가 `map` / `filter` / spread로 새 배열을 만들고, 변화가 없으면 기존 배열을 그대로 반환
 - **custom hook 분리** — `useTodos`(데이터), `useLocalStorage`(저장), `useApiTodos`(요청 상태). reducer는 순수 함수라 `id` / `Date.now()`는 Hook에서 만들어 action에 담는다
 - **검증** — `npm run build` / `npm run lint` 통과. reducer 분기, v1 → v2 저장 형식 변환, 깨진 JSON, 실제 API 호출(이어서 가져오기 / 전부 가져온 경우 / 요청 취소)을 Node에서 직접 실행해 확인
+
+
+
+---
+
+# TAVE React 스터디 4주차 과제
+
+To-Do-List에 **Kanban 보드**를 추가하면서 컴포넌트 구조 설계와 상태 관리 방식을 개선 — Context, Composition(compound component), Modal, Zustand 비교
+
+## 실행
+
+```bash
+npm run dev          # Context + useReducer (기본)
+npm run dev:zustand  # Zustand로 교체 — 화면 아래에 "상태 관리: Zustand" 표시
+```
+
+## 요구사항 체크
+
+| 요구사항 | 구현 | 위치 |
+|---|---|---|
+| 프로젝트 선택 | ✅ Kanban 보드 (기존 투두리스트에 `/board` 페이지 추가) | `src/pages/BoardPage.jsx` |
+| Board / Column / Card 구조 설계 | ✅ `Board`(배치) → `Column`(상태별 묶음) → `Card`(한 장) | `src/components/board/` |
+| 역할 기반 컴포넌트 분리 / 계층 구조 | ✅ 데이터(`state/`) · 보드 UI 상태(`BoardProvider`) · 화면 조각(`Column.*`, `Card.*`) 분리 | 〃 |
+| children 활용 | ✅ `Board`, `Column.Footer`, `Card.Actions`, `Modal.Body` / `Modal.Footer` | 〃, `src/components/Modal.jsx` |
+| compound component 설계 | ✅ `Column.*`, `Card.*`, `Modal.*` — Root가 Context로 값 공유 | `Column.jsx`, `Card.jsx`, `Modal.jsx` |
+| 재사용 가능한 구조 | ✅ 범용 `Modal`, 기존 `TaskEditForm` / `TextInput`을 모달·보드에서 재사용 | |
+| Context API로 먼저 구현 | ✅ `TodosContext` + `useReducer` | `src/state/ReducerTodosProvider.jsx` |
+| Zustand 또는 Jotai로 리팩토링 | ✅ Zustand — 컴포넌트 수정 없이 Provider만 교체 | `src/state/todosStore.js`, `ZustandTodosProvider.jsx` |
+| 상태 공유 구조 비교 | ✅ 아래 [Context vs Zustand vs Jotai](#context-vs-zustand-vs-jotai) | `실습 코드 정리.md` 4주차 7번 |
+| props drilling 해결 | ✅ `TodosContext` / `SettingsContext` — `App`이 페이지에 넘기는 props 0개 | `src/state/` |
+| 카드 상태 이동 | ✅ 할 일 → 진행 중 → 완료 (`← 이전` / `다음 →` 버튼, 모달의 상태 버튼) | `Card.MoveBack` / `Card.MoveForward`, reducer `moved` |
+| Modal 상세 보기 / 수정 | ✅ 카드 제목 클릭 → 상세, 수정 / 삭제 / 상태 변경 | `src/components/board/CardModal.jsx` |
+| 열기 / 닫기 상태 관리 | ✅ 열린 카드 id 하나(`selectedId`)로 관리, ESC / 바깥 클릭 / 닫기 버튼 | `src/components/board/BoardProvider.jsx` |
+| React Router / 멀티 페이지 | ✅ `/board` 추가 (달력 / 보드 / 상세 / 설정) | `src/App.jsx`, `src/components/Layout.jsx` |
+
+## 화면에서 달라진 점
+
+- 상단 메뉴에 **보드**가 생겼다. 할 일 / 진행 중 / 완료 3개 컬럼에 모든 할 일이 카드로 나온다
+- 카드의 **`진행 중 →`**, **`← 할 일`** 버튼으로 옆 컬럼으로 옮긴다 (첫 / 마지막 컬럼에서는 한쪽 버튼만)
+- **할 일** 컬럼 아래 **+ 카드 추가**로 오늘 날짜의 할 일을 바로 추가한다
+- 카드 제목을 누르면 **모달**이 열린다 — 상태 변경 버튼, 날짜 / 카테고리 / 세부사항, **수정** / **삭제** / **상세 페이지** / **닫기**
+- 모달에서 수정하면 기존 상세 페이지와 같은 수정 폼이 나온다. 수정 중 ESC는 모달을 닫지 않고 수정만 취소한다
+- 달력 화면에서 체크한 할 일은 보드의 **완료**로, 보드에서 완료로 옮긴 카드는 달력에서 체크된 상태로 보인다 (같은 데이터)
+- 화면 맨 아래에 지금 쓰는 상태 관리 방식이 표시된다 (`Context + useReducer` / `Zustand`)
+
+## 구조
+
+```
+src/
+├── main.jsx                        TodosProvider > SettingsProvider > App
+├── App.jsx                         라우팅만 — 페이지에 props를 넘기지 않는다
+├── state/
+│   ├── TodosContext.js             createContext + useTodosContext()  — { state, actions, meta }
+│   ├── TodosProvider.jsx           VITE_STATE에 따라 아래 둘 중 하나를 고른다
+│   ├── ReducerTodosProvider.jsx    구현 1: useTodos(useReducer) → Context
+│   ├── ZustandTodosProvider.jsx    구현 2: useTodosStore → Context
+│   ├── todosStore.js               Zustand store (todosReducer 재사용, subscribe로 저장)
+│   ├── todoActions.js              createTodoActions(dispatch) — 두 구현이 공유
+│   ├── todosStorage.js             loadTodos / saveTodos — 저장 형식 v3 + 마이그레이션
+│   ├── SettingsContext.js          createContext + useSettings()
+│   └── SettingsProvider.jsx        useLocalStorage('settings') → Context
+├── pages/
+│   └── BoardPage.jsx               Board / Column / Card 조립 + CardModal
+└── components/
+    ├── Modal.jsx                   범용 모달 (Root / Title / Body / Footer / Close), <dialog> 사용
+    └── board/
+        ├── Board.jsx               컬럼 배치 틀 (children)
+        ├── BoardContext.js         useBoard() — { selectedId, openCard, closeCard }
+        ├── BoardProvider.jsx       모달 열린 카드 id state
+        ├── Column.jsx              Root / Header / Cards / Footer
+        ├── ColumnContext.js        useColumn() — { status, label, cards }
+        ├── Card.jsx                Root / Title / Meta / Actions / MoveBack / MoveForward
+        ├── AddCardForm.jsx         컬럼에 카드 추가 (TextInput 재사용)
+        └── CardModal.jsx           CardDetailView / CardEditView
+```
+
+```
+BoardPage
+ └─ BoardProvider                         (selectedId)
+     ├─ Board
+     │   ├─ Column.Root status="todo"     (ColumnContext: 이 상태의 cards)
+     │   │   ├─ Column.Header             제목 + 개수
+     │   │   ├─ Column.Cards
+     │   │   │   └─ Card.Root ×N          (CardContext: todo)
+     │   │   │       ├─ Card.Title        → openCard(id)
+     │   │   │       ├─ Card.Meta
+     │   │   │       └─ Card.Actions
+     │   │   │           ├─ Card.MoveBack
+     │   │   │           └─ Card.MoveForward
+     │   │   └─ Column.Footer
+     │   │       └─ AddCardForm
+     │   ├─ Column.Root status="doing"    (Footer 없음)
+     │   └─ Column.Root status="done"     (Footer 없음)
+     └─ CardModal
+         └─ Modal.Root open={선택된 카드가 있나}
+             └─ CardDetailView | CardEditView
+```
+
+### 데이터 모델
+
+```js
+{ id, text, memo, done, status, category, date, createdAt, sourceId? }
+// status: 'todo' | 'doing' | 'done'  ← 4주차 추가
+// done은 기존 화면(체크박스, 완료 필터, 달력 ✓)용 — 항상 status === 'done'과 같다
+```
+
+- 상태가 3개라 `done`(true / false)만으로는 표현할 수 없어 `status`를 추가했다
+- `done`과 `status`를 함께 바꾸는 곳은 reducer(`toggled`, `moved`) 한 곳뿐이다
+- 저장 형식을 **v3**로 올렸다. 3주차에 저장한 데이터(v2)와 그 이전 데이터(v1)는 처음 불러올 때 `done`을 보고 `status`를 채운다
+
+### props drilling — 전 / 후
+
+```
+3주차                                              4주차
+App (useTodos)                                     main.jsx: <TodosProvider><SettingsProvider><App/>
+ └─ MainPage   todos settings onAdd onImport        App          (props 없음)
+               onToggle onDelete                     └─ MainPage  useTodosContext().state
+     └─ DayTodos  (같은 6개)                              └─ DayTodos  useTodosContext(), useSettings()
+         └─ TaskList   onToggle onDelete  ← 전달만            └─ TaskList  todos만
+             └─ TaskItem  onToggle onDelete                      └─ TaskItem  useTodosContext().actions
+```
+
+### Context vs Zustand vs Jotai
+
+| | Context + useReducer | Zustand | Jotai |
+|---|---|---|---|
+| state 위치 | React 트리 안 (Provider) | React 밖 store 하나 | atom 여러 개 |
+| Provider | 필요 | 필요 없음 | 선택 |
+| 구독 단위 | Context 값 전체 | selector로 고른 값 | atom 하나 |
+| 값이 바뀌면 | 그 Context를 쓰는 컴포넌트 **전부** 리렌더 | 고른 값이 바뀐 컴포넌트만 | 그 atom을 쓰는 컴포넌트만 |
+| 잘 맞는 상황 | 자주 안 바뀌는 값 (설정, 테마) | 큰 state 하나 + action들 | 독립적인 작은 state가 많을 때 |
+
+- 할 일 데이터는 "배열 하나 + 그걸 바꾸는 action들"이라 **store 하나에 3주차 `todosReducer`를 그대로 쓸 수 있는 Zustand**를 골랐다 (Jotai는 비교만)
+- 두 구현이 `todosReducer` · `createTodoActions` · `todosStorage`를 공유한다 → 달라지는 건 **state를 어디에 두느냐**뿐
+- 이번 Zustand 버전은 컴포넌트를 바꾸지 않으려고 store를 다시 Context로 감쌌기 때문에 **리렌더링 범위는 Context 버전과 같다.** selector의 이점을 쓰려면 컴포넌트가 `useTodosStore`를 직접 구독해야 하고, 그러면 컴포넌트가 Zustand에 묶인다 — **교체 쉬움 vs 세밀한 구독**의 트레이드오프
+
+---
+
+## agent-skills 적용 정리
+
+### 1. `architecture-avoid-boolean-props` — boolean prop으로 화면을 바꾸지 않는다
+
+**이렇게 만들면**
+'할 일' 컬럼에만 카드 추가가 필요하다.
+
+```jsx
+<Column status="todo" showAddButton />
+<Column status="doing" />
+```
+
+옵션이 생길 때마다 `Column` 안에 `if (showAddButton)`, `if (showCount)`…가 쌓이고, 조합이 늘수록 어떤 모양이 나오는지 알기 어렵다.
+
+**적용한 rule**
+boolean으로 모양을 바꾸는 대신, 필요한 조각을 **넣거나 빼서** 조립한다.
+
+**결과**
+```jsx
+// src/pages/BoardPage.jsx
+<Column.Root status="todo">
+  <Column.Header />
+  <Column.Cards />
+  <Column.Footer>
+    <AddCardForm />
+  </Column.Footer>
+</Column.Root>
+
+<Column.Root status="doing">
+  <Column.Header />
+  <Column.Cards />
+</Column.Root>
+```
+`Column`에는 카드 추가와 관련된 prop이 없다. `AddCardForm`은 `useColumn().status`로 상태를 읽어서, 다른 컬럼 Footer에 넣으면 그 상태로 카드를 추가한다.
+
+### 2. `architecture-compound-components` — 함께 쓰는 조각은 Root의 Context로 묶는다
+
+**이렇게 만들면**
+```jsx
+<Column status="todo" label="할 일" cards={cards} count={cards.length}
+        onMove={moveTodo} onOpen={openCard} footer={<AddCardForm />} />
+```
+`Column` 하나가 제목 / 개수 / 목록 / 카드 / 버튼 / Footer를 전부 props로 받아서 그린다. 카드 모양을 조금 바꾸려 해도 `Column`을 고쳐야 한다.
+
+**적용한 rule**
+Root가 공유할 값을 Context로 내려주고, 하위 조각은 Context에서 꺼내 한 가지만 그린다.
+
+**결과**
+```jsx
+// src/components/board/Column.jsx
+export function Root({ status, children }) {
+  const { todos } = useTodosContext().state;
+  const cards = sortTodos(todos.filter((todo) => todo.status === status), settings.defaultSort);
+  return (
+    <ColumnContext value={{ status, label: STATUS_LABEL[status], cards }}>
+      <section className={`column column-${status}`}>{children}</section>
+    </ColumnContext>
+  );
+}
+
+export function Header() {
+  const { label, cards } = useColumn();   // props 없이 자기 컬럼을 안다
+  ...
+}
+```
+`Card.*`(todo 공유), `Modal.*`(제목 id, onClose 공유)도 같은 구조다. 조각은 `export function Root()`처럼 따로 내보내고 `import * as Column from './Column'`으로 묶어 쓴다 — `export const Column = { Root, ... }` 객체로 내보내면 Vite Fast Refresh가 컴포넌트 파일로 인식하지 못해서 oxlint(`only-export-components`)가 경고한다.
+
+### 3. `patterns-explicit-variants` — 모드 prop 대신 이름 있는 컴포넌트
+
+**이렇게 만들면**
+```jsx
+<MoveButton direction="back" />
+<MoveButton direction="forward" />
+
+function CardModal({ todo }) {
+  const [isEditing, setIsEditing] = useState(false);
+  return (
+    <>
+      <h2>{isEditing ? '카드 수정' : todo.text}</h2>
+      {isEditing ? <TaskEditForm ... /> : <dl>...</dl>}
+      {!isEditing && <footer>...</footer>}
+    </>
+  );
+}
+```
+한 컴포넌트 안에서 같은 조건으로 여러 번 갈라진다.
+
+**적용한 rule**
+모드마다 별도의 컴포넌트를 만들고, 갈라지는 곳은 한 번만 둔다.
+
+**결과**
+```jsx
+// src/components/board/Card.jsx
+<Card.Actions>
+  <Card.MoveBack />       {/* 첫 컬럼이면 null */}
+  <Card.MoveForward />    {/* 마지막 컬럼이면 null */}
+</Card.Actions>
+
+// src/components/board/CardModal.jsx — 분기는 여기 한 번
+return isEditing ? (
+  <CardEditView todo={todo} onDone={() => setIsEditing(false)} />
+) : (
+  <CardDetailView todo={todo} onEdit={() => setIsEditing(true)} />
+);
+```
+
+### 4. `patterns-children-over-render-props` — 구조는 children으로
+
+**이렇게 만들면**
+```jsx
+<Board renderColumn={(status) => <Column status={status} />} />
+<Modal renderFooter={() => <button>닫기</button>} />
+```
+
+**적용한 rule**
+부모가 자식에게 데이터를 돌려줄 필요가 없으면 render prop 대신 children으로 받는다.
+
+**결과**
+```jsx
+// src/components/board/Board.jsx
+function Board({ children }) {
+  return <div className="board">{children}</div>;
+}
+
+<Modal.Footer>
+  <button onClick={onEdit}>수정</button>
+  <Modal.Close />
+</Modal.Footer>
+```
+안쪽 조각에 데이터가 필요하면(카드의 todo, 컬럼의 status) render prop으로 넘기지 않고 Root의 Context에서 꺼낸다.
+
+### 5. `state-lift-state` — 여러 곳이 쓰는 state는 Provider로 올린다
+
+**문제 (3주차 코드)**
+할 일 state는 `App`의 `useTodos()`에 있고, 쓰는 곳(`TaskItem`)까지 props로 4단계를 내려갔다. 이번에 보드 / 모달 / 카드 추가까지 같은 데이터를 써야 했다.
+
+**적용한 rule**
+형제 / 먼 자손이 함께 쓰는 state는 그들을 모두 감싸는 Provider로 올리고, 필요한 곳에서 꺼낸다.
+
+**결과**
+
+| state | 올린 곳 | 쓰는 곳 |
+|---|---|---|
+| 할 일 | `TodosProvider` (`main.jsx`) | 달력 / 보드 / 상세 / 설정 페이지, 카드, 모달 |
+| 설정 | `SettingsProvider` (`main.jsx`) | 입력 폼, 정렬, 설정 페이지, 컬럼 정렬 |
+| 열린 카드 id | `BoardProvider` (`BoardPage`) | `Card.Title`(열기), `CardModal`(표시 / 닫기) |
+
+`Card.Title`과 `CardModal`은 서로 형제가 아니라 멀리 떨어져 있지만, 둘 다 `BoardProvider` 안에 있어서 같은 `selectedId`를 본다. 반대로 열린 카드 id는 보드 밖에서는 필요 없어서 `main.jsx`가 아니라 `BoardPage`에서만 감쌌다.
+
+### 6. `state-context-interface` — Context 값의 모양을 정해 둔다
+
+**적용한 rule**
+Context 값을 `{ state, actions, meta }`처럼 정해진 모양으로 공개한다.
+
+**결과**
+```js
+// src/state/TodosContext.js
+//   state   : { todos }
+//   actions : { addTodo, importTodos, toggleTodo, moveTodo, updateTodo, deleteTodo, clearDone, clearAll }
+//   meta    : { implementation }
+
+const { todos } = useTodosContext().state;
+const { moveTodo } = useTodosContext().actions;
+```
+- 읽기(`state`)와 쓰기(`actions`)가 나뉘어 있어서 무엇을 바꾸는 코드인지 바로 보인다
+- `createContext(null)` + `useTodosContext()`의 null 검사 → Provider 밖에서 쓰면 바로 에러 메시지가 나온다
+- Provider의 value는 `useMemo`로 감싸서, 내용이 같으면 소비자가 다시 렌더링되지 않는다
+
+### 7. `state-decouple-implementation` — 구현은 Provider 안에만
+
+**적용한 rule**
+컴포넌트는 인터페이스(6번)만 알고, state를 무엇으로 관리하는지는 Provider만 안다.
+
+**결과**
+```jsx
+// src/state/TodosProvider.jsx
+const TodosProvider =
+  import.meta.env.VITE_STATE === 'zustand' ? ZustandTodosProvider : ReducerTodosProvider;
+```
+`useReducer` → Zustand 교체에서 **컴포넌트 파일은 하나도 바뀌지 않았다.** `npm run dev` ↔ `npm run dev:zustand`로 확인할 수 있다.
+
+### 8. `react19-no-forwardref` — ref는 일반 prop
+
+`forwardRef`는 프로젝트 어디에도 없다. `TextField`(1주차부터)는 `function TextField({ ref, ... })`로 ref를 prop으로 받고, 새로 만든 `Modal.Root`는 `<dialog>`의 ref를 안에서 `useRef`로만 쓴다.
+같은 React 19 문법으로 Context도 `<TodosContext.Provider value>` 대신 `<TodosContext value>`로, 읽을 때는 `useContext` 대신 `use(TodosContext)`로 썼다.
+
+---
+
+## 과제 룰 체크
+
+- **Context API 먼저** — `ReducerTodosProvider`가 기본 구현이고, Zustand는 같은 인터페이스로 교체한 두 번째 구현이다
+- **props drilling 제거** — `App`이 페이지에 넘기는 props 0개. `TaskList`처럼 전달만 하던 컴포넌트는 더 이상 조작 함수를 받지 않는다
+- **Context 범위 최소화** — 앱 전체가 쓰는 할 일 / 설정만 `main.jsx`에, 보드 UI state는 `BoardPage`에만
+- **state 최소화** — 모달 열림 여부와 선택된 카드를 따로 두지 않고 `selectedId` 하나로 표현. 컬럼별 카드 목록은 `todos`에서 렌더링 중 계산
+- **불변성 유지** — 새 `moved` 액션도 `map`으로 새 배열을 만들고, 이미 그 상태면 기존 배열을 그대로 반환
+- **재사용** — 수정 폼(`TaskEditForm`), 입력 폼(`TextInput`), reducer / 저장 로직을 새 화면과 Zustand 구현이 그대로 쓴다
+- **검증** — `npm run lint` / `npm run build`(두 모드) 통과. Context / Zustand 모드 각각에서 v2 → v3 저장 형식 변환, reducer `moved` / `toggled`의 `done`·`status` 동기화, 보드의 컬럼·카드 배치, 기존 달력 / 상세 / 설정 페이지 렌더링을 Node에서 직접 실행해 확인
