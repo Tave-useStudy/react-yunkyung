@@ -29,7 +29,10 @@ function TaskEditForm({ todo, onSave, onCancel }) {
   };
 
   const handleKeyDown = (e) => {
-    if (e.key === 'Escape') onCancel();
+    if (e.key !== 'Escape') return;
+    // 모달(<dialog>) 안에서 쓰일 때 ESC가 모달까지 닫지 않고 수정만 취소하도록 기본 동작을 막는다
+    e.preventDefault();
+    onCancel();
   };
 
   return (

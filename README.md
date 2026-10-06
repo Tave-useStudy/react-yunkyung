@@ -340,3 +340,295 @@ const handleSubmit = (e) => {
 - **컴포넌트 분리** — 페이지 3개 + 컴포넌트 12개, 필터/정렬 로직은 `utils/todo.js` 순수 함수로 분리
 - **불변성** — 모든 todos 업데이트는 `map` / `filter` / spread / `toSorted`로 새 값 생성
 
+
+
+---
+
+# TAVE React 스터디 3주차 과제
+
+To-Do-List를 **데이터 기반 구조**로 개선 — useReducer, 데이터 영속화, Custom Hook, API 연동, 로딩/에러 처리
+
+## 요구사항 체크
+
+| 요구사항 | 구현 | 위치 |
+|---|---|---|
+| useState → useReducer 전환 | ✅ `useState` + 조작 함수 6개 → `todosReducer` 하나 | `src/reducers/todosReducer.js` |
+| CRUD 액션 통합 | ✅ `added` / `toggled` / `updated` / `deleted` / `cleared_done` / `cleared_all` / `imported` | 〃 |
+| localStorage 저장 / 불러오기 | ✅ `{ version, data }` 형식, 예전 형식(v1) 자동 변환 | `src/utils/storage.js` |
+| 새로고침 유지 | ✅ 할 일 + **설정도** 유지 (2주차에는 설정이 새로고침하면 초기화됐음) | `useTodos`, `useLocalStorage` |
+| useLocalStorage 구현 | ✅ `useState`처럼 쓰는 저장 Hook | `src/hooks/useLocalStorage.js` |
+| 로직 분리 | ✅ 할 일 데이터 → `useTodos`, API 요청 상태 → `useApiTodos` | `src/hooks/` |
+| API 연동 | ✅ JSONPlaceholder `/todos` + `/users` | `src/api/todos.js` |
+| 로딩 스피너 | ✅ | `src/components/ApiImport.jsx` |
+| 에러 메시지 | ✅ 네트워크 오류 / 서버 응답 오류 구분 | 〃 |
+| 재시도 버튼 | ✅ | 〃 |
+| (선택) TanStack Query | — 이번에는 하지 않음 | |
+
+## 화면에서 달라진 점
+
+- 날짜를 누르면 보라색 **할 일 입력하기** 버튼 아래에 **API에서 할 일 10개 불러오기** 버튼이 생긴다
+- 누르면 → 스피너 + "할 일을 불러오는 중..." → 선택한 날짜에 10개 추가 + "10개를 가져왔어요."
+- 다시 누르면 **이미 가져온 항목은 빼고 다음 10개**를 가져온다. 200개를 다 가져오면 "더 가져올 할 일이 없어요."
+- 실패하면 "불러오지 못했어요. 네트워크에 연결할 수 없어요." + **다시 시도** 버튼
+- API 할 일은 카테고리 `일정`, 제목이 길면 20자로 줄이고 **전체 제목 · 작성자 이름 · 출처**는 세부사항에 저장
+
+## 구조
+
+```
+src/
+├── App.jsx                     라우팅만 (useTodos / useLocalStorage 호출)
+├── api/
+│   └── todos.js                fetchApiTodos — 요청, res.ok 확인, 응답 → 앱 데이터 모양으로 변환
+├── reducers/
+│   └── todosReducer.js         todos의 모든 변경(CRUD + import)을 한곳에서
+├── hooks/
+│   ├── useTodos.js             useReducer + localStorage 저장 + 액션 함수 (id·시간 생성)
+│   ├── useLocalStorage.js      useState처럼 쓰는 저장 Hook (설정에 사용)
+│   └── useApiTodos.js          API 요청 상태 (idle / loading / success / error) + 요청 취소
+├── utils/
+│   └── storage.js              readStorage / writeStorage — { version, data } 형식, 예전 형식 변환
+└── components/
+    └── ApiImport.jsx           불러오기 버튼 / 스피너 / 결과 / 에러 + 다시 시도
+```
+
+```
+Component (화면)          →  Custom Hook (로직)          →  State / 외부 시스템
+─────────────────────────────────────────────────────────────────────────────
+App                       →  useTodos                    →  useReducer(todosReducer) + localStorage
+App                       →  useLocalStorage('settings') →  useState + localStorage
+ApiImport                 →  useApiTodos                 →  useState(status) + fetch(api/todos.js)
+```
+
+### 데이터 모델
+
+```js
+{ id, text, memo, done, category, date, createdAt, sourceId? }
+// id: crypto.randomUUID() (2주차까지 만든 할 일은 숫자 id 그대로)
+// sourceId: API에서 가져온 할 일만 — JSONPlaceholder의 id (중복 방지용)
+```
+
+## 과제 예시 코드를 그대로 쓰면 안 되는 이유와 바꾼 방법
+
+```jsx
+// 과제의 "이렇게 하면 안 되는" 예시
+useEffect(() => {
+  fetch('https://jsonplaceholder.typicode.com/todos')
+    .then((res) => res.json())
+    .then((data) => setTodos(data.slice(0, 10)));
+}, []);
+```
+
+| 문제 | 무슨 일이 생기나 | 바꾼 방법 |
+|---|---|---|
+| 로딩 / 에러 상태 없음 | 요청 중엔 빈 화면, 실패하면 그대로 멈춤 | `status: 'idle' \| 'loading' \| 'success' \| 'error'` → 스피너 / 에러 + 재시도 |
+| `res.ok` 확인 없음 | 404·500 응답도 `.json()`으로 넘어가 이상한 데이터가 들어감 | `if (!res.ok) throw new Error(...)` |
+| 취소 / 경쟁 처리 없음 | 먼저 보낸 요청이 늦게 오면 최신 결과를 덮어씀, StrictMode에선 두 번 요청 | `AbortController` — 새 요청 전 이전 요청 취소, 화면에서 사라지면 취소 |
+| `setTodos(data)` 로 덮어쓰기 | 저장해 둔 내 할 일이 전부 사라짐 | `imported` 액션으로 **기존 목록에 추가**, `sourceId`로 중복 제거 |
+| 응답 모양 그대로 사용 | `title` / `completed` ↔ 앱은 `text` / `done` / `date` / `category` | `api/todos.js`에서 변환, `useTodos.importTodos`에서 앱 데이터로 |
+| effect에서 요청 | "화면이 뜨면 무조건 요청" — 사용자가 원하지 않아도 매번 호출 | **버튼 클릭(이벤트)** 에서 요청 |
+| 컴포넌트 안에 fetch + state | 다른 곳에서 재사용 불가, 컴포넌트가 비대해짐 | `api/`(요청) · `useApiTodos`(상태) · `ApiImport`(화면)로 분리 |
+
+---
+
+## agent-skills 적용 정리
+
+### 1. `async-parallel` — 서로 기다릴 필요 없는 요청은 동시에
+
+**문제 (내 코드)**
+할 일에 작성자 이름을 붙이려고 `/todos`와 `/users`를 차례로 불렀다.
+
+```js
+const todos = await fetchJson('/todos');
+const users = await fetchJson('/users');   // todos가 끝나야 시작
+```
+
+두 요청은 서로의 결과가 필요 없는데도 순서대로 기다려서 **걸리는 시간이 두 요청의 합**이 된다.
+
+**적용한 rule**
+독립적인 비동기 작업은 한꺼번에 시작하고, 결과가 필요할 때 기다린다.
+
+**결과**
+```js
+// src/api/todos.js
+const usersPromise = fetchJson('/users', signal).catch(() => []);   // 먼저 시작만
+const apiTodos = await fetchJson('/todos', signal);                 // 동시에 진행
+...
+const users = await usersPromise;
+```
+두 요청이 동시에 날아가서 전체 시간이 **둘 중 긴 쪽**으로 줄었다. 작성자 이름은 부가 정보라 `/users`가 실패해도 `.catch(() => [])`로 할 일 가져오기는 계속된다.
+
+### 2. `async-defer-await` — 필요할 때까지 await를 미룬다
+
+**문제 (내 코드)**
+위처럼 동시에 시작한 뒤에도 `Promise.all`로 둘 다 기다리면, 이미 200개를 다 가져와서 **새로 추가할 게 없을 때도** 작성자 목록 응답을 기다린다.
+
+```js
+const [apiTodos, users] = await Promise.all([fetchJson('/todos'), fetchJson('/users')]);
+const fresh = apiTodos.filter((t) => !excludeIds.has(t.id));
+if (fresh.length === 0) return [];   // users는 쓰지도 않는데 기다렸다
+```
+
+**적용한 rule**
+`await`는 그 값이 실제로 쓰이는 분기 안으로 옮긴다.
+
+**결과**
+```js
+const fresh = apiTodos.filter((todo) => !excludeIds.has(todo.id)).slice(0, limit);
+if (fresh.length === 0) return [];      // 여기서 끝나면 users는 기다리지 않는다
+
+const users = await usersPromise;       // 정말 필요할 때만
+```
+"더 가져올 할 일이 없어요" 경우 응답이 `/todos` 하나만큼 빨라졌다. 이미 가져온 id 목록(`importedIds`)도 같은 생각으로, 매 렌더링이 아니라 **버튼을 눌렀을 때만** 만든다 (`ApiImport.jsx`).
+
+### 3. `rerender-derived-state-no-effect` — 계산할 수 있는 값은 state + effect로 만들지 않는다
+
+**문제 (내 코드)**
+로딩 / 에러 상태를 처음엔 boolean 여러 개로 두고, 결과 문구를 effect로 맞추려 했다.
+
+```jsx
+const [isLoading, setIsLoading] = useState(false);
+const [error, setError] = useState(null);
+const [resultText, setResultText] = useState('');
+
+useEffect(() => {
+  setResultText(count > 0 ? `${count}개를 가져왔어요.` : '더 가져올 할 일이 없어요.');
+}, [count]);
+```
+
+`isLoading && error` 같은 **불가능한 조합**이 생길 수 있고, `resultText`는 `count`만 있으면 계산되는데 effect 때문에 렌더링이 한 번 더 돈다.
+
+**적용한 rule**
+props / state로 계산할 수 있는 값은 렌더링 중에 계산한다. 서로 배타적인 상태는 하나의 `status`로 표현한다.
+
+**결과**
+```jsx
+// useApiTodos.js — 상태는 하나
+const [request, setRequest] = useState({ status: 'idle' });
+setRequest({ status: 'success', count: items.length });
+
+// ApiImport.jsx — 문구는 렌더링 중 계산
+{count > 0 ? `${count}개를 가져왔어요.` : '더 가져올 할 일이 없어요.'}
+```
+불가능한 조합이 사라지고 화면 분기가 `status`별 early return으로 정리됐다. 달력 개수 뱃지(`countByDate`), 날짜별 목록(`dayTodos`)도 2주차부터 계속 렌더링 중 계산한다.
+
+### 4. `rerender-lazy-state-init` — 무거운 초기값은 함수로
+
+**문제 (내 코드)**
+useReducer로 바꾸면서 초기값을 이렇게 넘기면,
+
+```jsx
+const [todos, dispatch] = useReducer(todosReducer, loadTodos());
+```
+
+`loadTodos()`가 **매 렌더링마다** 실행된다 (localStorage 읽기 + `JSON.parse` + 예전 데이터 변환). 결과는 첫 렌더링에만 쓰이고 나머지는 버려진다.
+
+**적용한 rule**
+초기값 계산이 무거우면 함수 자체를 넘겨서 첫 렌더링에만 실행되게 한다.
+
+**결과**
+```jsx
+// useTodos.js — useReducer는 세 번째 인자(init 함수)
+const [todos, dispatch] = useReducer(todosReducer, undefined, loadTodos);
+
+// useLocalStorage.js — useState는 함수 초기값
+const [value, setValue] = useState(() => readStorage(key, { ... }));
+```
+할 일을 추가하거나 체크할 때마다 localStorage를 다시 읽고 파싱하던 비용이 없어졌다.
+
+### 5. `client-localstorage-schema` — 저장 형식에 버전을 붙인다
+
+**문제 (내 코드)**
+2주차까지는 배열을 그대로 저장했다.
+
+```js
+localStorage.setItem('todos', JSON.stringify(todos));   // [ {...}, {...} ]
+```
+
+기능을 추가할 때마다(`date`, `memo`, 카테고리 변경) 불러오는 코드에 `todo.date ?? ...`, `todo.memo ?? ''`를 계속 덧붙였다. 지금 데이터가 **어느 시점 형식인지 알 방법이 없어서** 모든 경우를 매번 검사해야 했고, JSON이 깨져 있거나 저장 공간이 부족하면 앱이 멈출 수 있었다.
+
+**적용한 rule**
+저장 데이터에 버전을 넣고, 버전이 다르면 변환 함수(migrate)로 옮긴다. 읽기 / 쓰기는 `try / catch`로 감싼다.
+
+**결과**
+```js
+// utils/storage.js
+localStorage.setItem(key, JSON.stringify({ version, data }));
+
+const parsed = JSON.parse(saved);
+if (parsed?.version === version) return parsed.data;   // 현재 형식 → 그대로
+return migrate?.(parsed) ?? fallback;                   // 예전 형식 → 변환
+
+// hooks/useTodos.js — v1(버전 없는 배열) → v2
+function migrateTodos(saved) {
+  return Array.isArray(saved) ? saved.map(normalizeTodo) : undefined;
+}
+```
+기존 사용자의 할 일은 첫 실행 때 자동으로 v2로 옮겨지고, 다음 형식 변경 때는 `version: 3` + 변환 함수 하나만 추가하면 된다. 읽기 / 쓰기 로직은 `readStorage` / `writeStorage` 하나로 모아 `useTodos`와 `useLocalStorage`가 같이 쓴다.
+
+### 6. `rerender-dependencies` — 바뀐 게 없으면 참조도 그대로
+
+**문제 (내 코드)**
+reducer의 "완료한 할 일 삭제"를 처음엔 항상 `filter`로 돌려줬다.
+
+```js
+case 'cleared_done':
+  return todos.filter((todo) => !todo.done);
+```
+
+완료한 할 일이 없어도 `filter`는 **새 배열**을 만든다. `todos`가 의존성인 저장 effect(`[todos]`)는 내용이 같아도 참조가 바뀌었으니 다시 실행되고, `todos`를 받는 페이지도 다시 렌더링된다.
+
+**적용한 rule**
+effect / 렌더링은 의존성의 **참조**가 바뀔 때 다시 실행된다. 실제로 바뀐 게 없으면 기존 값을 그대로 돌려준다.
+
+**결과**
+```js
+case 'cleared_done':
+  if (!todos.some((todo) => todo.done)) return todos;   // 같은 참조 → React가 렌더링 생략
+  return todos.filter((todo) => !todo.done);
+
+case 'cleared_all':
+  return todos.length === 0 ? todos : [];
+
+case 'imported':
+  return fresh.length === 0 ? todos : [...todos, ...fresh];
+```
+변화 없는 액션에서는 리렌더링과 localStorage 쓰기가 모두 생략된다. `useLocalStorage`의 effect 의존성도 `[key, version, value]` — 값이 실제로 바뀐 경우에만 저장한다.
+
+### 7. `js-set-map-lookups` — 반복 조회는 Set / Map으로
+
+**문제 (내 코드)**
+- API 할 일마다 작성자를 `users.find()`로 찾으면 할 일 수 × 유저 수만큼 돈다
+- 이미 가져온 항목인지 `todos.some(t => t.sourceId === id)`로 확인하면 API 항목 수 × 내 할 일 수
+- 달력 칸(최대 42개)마다 그날 할 일을 세면 칸 수 × 할 일 수
+
+```js
+author: users.find((u) => u.id === todo.userId)?.name
+```
+
+**적용한 rule**
+같은 배열에서 여러 번 찾을 때는 한 번 Set / Map으로 만들어 두고 `has()` / `get()`(O(1))으로 조회한다.
+
+**결과**
+```js
+// api/todos.js — userId → 이름
+const nameById = new Map(users.map((user) => [user.id, user.name]));
+author: nameById.get(todo.userId) ?? `사용자 ${todo.userId}`
+
+// ApiImport.jsx / todosReducer.js — 이미 가져온 API id
+const importedIds = new Set(todos.map((todo) => todo.sourceId));
+apiTodos.filter((todo) => !importedIds.has(todo.id))
+
+// utils/todo.js — 날짜 → 개수 (객체 → Map), Calendar.jsx에서 countMap.get(key)
+// hooks/useTodos.js — 유효한 카테고리 확인 (CATEGORIES.includes → VALID_CATEGORIES.has)
+```
+할 일이 늘어나도 조회 비용이 늘지 않는다.
+
+---
+
+## 과제 룰 체크
+
+- **Effect 남용 금지** — effect는 3개뿐이고 모두 외부 시스템과의 동기화다: 할 일 저장(`useTodos`), 설정 저장(`useLocalStorage`), 화면에서 사라질 때 요청 취소(`useApiTodos`). API 요청은 effect가 아니라 **버튼 클릭**에서 보낸다
+- **파생 상태 금지** — 결과 문구, 날짜별 목록, 탭 개수, 달력 뱃지 모두 렌더링 중 계산. 로딩/에러는 `status` 하나로
+- **불변성 유지** — reducer의 모든 분기가 `map` / `filter` / spread로 새 배열을 만들고, 변화가 없으면 기존 배열을 그대로 반환
+- **custom hook 분리** — `useTodos`(데이터), `useLocalStorage`(저장), `useApiTodos`(요청 상태). reducer는 순수 함수라 `id` / `Date.now()`는 Hook에서 만들어 action에 담는다
+- **검증** — `npm run build` / `npm run lint` 통과. reducer 분기, v1 → v2 저장 형식 변환, 깨진 JSON, 실제 API 호출(이어서 가져오기 / 전부 가져온 경우 / 요청 취소)을 Node에서 직접 실행해 확인

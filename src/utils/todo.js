@@ -25,13 +25,15 @@ export function sortTodos(todos, sortBy) {
   return todos.toSorted(compare);
 }
 
-// 달력 칸마다 개수를 찾기 쉽게 { 'YYYY-MM-DD': { all, done } } 형태로 모은다
+// 달력 칸(최대 42개)마다 그날 할 일을 filter로 세면 칸 수 × 할 일 수만큼 돈다.
+// 할 일을 한 번만 돌면서 Map('YYYY-MM-DD' → { all, done })을 만들어 두고 칸에서는 get()만 한다.
 export function countByDate(todos) {
-  const map = {};
+  const map = new Map();
   for (const todo of todos) {
-    map[todo.date] ??= { all: 0, done: 0 };
-    map[todo.date].all += 1;
-    if (todo.done) map[todo.date].done += 1;
+    const count = map.get(todo.date) ?? { all: 0, done: 0 };
+    count.all += 1;
+    if (todo.done) count.done += 1;
+    map.set(todo.date, count);
   }
   return map;
 }
@@ -39,4 +41,10 @@ export function countByDate(todos) {
 export function countByStatus(todos) {
   const done = todos.filter((todo) => todo.done).length;
   return { all: todos.length, done, active: todos.length - done };
+}
+
+// Kanban 카드 이동: 지금 상태의 바로 앞(-1) / 뒤(+1) 상태. 맨 끝이면 null
+export function getAdjacentStatus(statuses, status, step) {
+  const index = statuses.findIndex((s) => s.value === status);
+  return statuses[index + step] ?? null;
 }

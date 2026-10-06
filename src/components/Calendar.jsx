@@ -38,7 +38,7 @@ function Calendar({ month, selectedKey, countMap, onSelectDate, onMoveMonth, onT
               date={date}
               isToday={key === today}
               isSelected={key === selectedKey}
-              count={countMap[key]}
+              count={countMap.get(key)}
               onSelect={() => onSelectDate(key)}
             />
           );

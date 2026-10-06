@@ -25,3 +25,12 @@ export const DEFAULT_SETTINGS = {
 export const MAX_TEXT_LENGTH = 20;
 
 export const MAX_MEMO_LENGTH = 500;
+
+// 4주차: Kanban 보드의 컬럼 = 할 일의 진행 상태. 배열 순서가 곧 이동 순서(할 일 → 진행 중 → 완료)다.
+export const STATUSES = [
+  { value: 'todo', label: '할 일' },
+  { value: 'doing', label: '진행 중' },
+  { value: 'done', label: '완료' },
+];
+
+export const STATUS_LABEL = Object.fromEntries(STATUSES.map((s) => [s.value, s.label]));

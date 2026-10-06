@@ -1,14 +1,23 @@
 import { useState } from 'react';
 import TextInput from './TextInput';
+import ApiImport from './ApiImport';
 import FilterTabs from './FilterTabs';
 import TaskList from './TaskList';
 import { CATEGORY_ALL } from '../constants';
 import { filterTodos, sortTodos, countByStatus } from '../utils/todo';
 import { formatDateKo } from '../utils/date';
+import { useTodosContext } from '../state/TodosContext';
+import { useSettings } from '../state/SettingsContext';
 
 // 달력 아래에 붙는 "선택한 날의 할 일" 영역.
 // 부모가 key={dateKey}로 렌더링하므로 날짜를 바꾸면 입력창/탭 state가 초기화된다.
-function DayTodos({ date, dateKey, todos, settings, onAdd, onToggle, onDelete }) {
+// 4주차: todos / settings / 조작 함수를 props로 받지 않고 Context에서 꺼낸다.
+function DayTodos({ date, dateKey }) {
+  const {
+    state: { todos },
+    actions: { addTodo, importTodos },
+  } = useTodosContext();
+  const { settings } = useSettings();
   const [isAdding, setIsAdding] = useState(false);
   // 어떤 탭을 보고 있는지만 이 컴포넌트의 state로 관리 (정렬은 설정의 기본 정렬을 따른다)
   const [tab, setTab] = useState('all');
@@ -28,26 +37,22 @@ function DayTodos({ date, dateKey, todos, settings, onAdd, onToggle, onDelete })
       {isAdding ? (
         <TextInput
           key={settings.defaultCategory}
-          onAdd={(input) => onAdd({ ...input, date: dateKey })}
+          onAdd={(input) => addTodo({ ...input, date: dateKey })}
           onClose={() => setIsAdding(false)}
-          settings={settings}
         />
       ) : (
         <button type="button" className="primary-btn" onClick={() => setIsAdding(true)}>
           할 일 입력하기
         </button>
       )}
+      <ApiImport onImport={(items) => importTodos(items, dateKey)} />
 
       {dayTodos.length === 0 ? (
         <p className="empty">첫 할 일을 추가해 보세요.</p>
       ) : (
         <>
           <FilterTabs active={tab} counts={counts} onChange={setTab} />
-          <TaskList
-            todos={visibleTodos}
-            onToggle={onToggle}
-            onDelete={onDelete}
-          />
+          <TaskList todos={visibleTodos} />
         </>
       )}
     </section>

@@ -1,10 +1,12 @@
 import { useRef, useState } from 'react';
 import TextField from './TextField';
 import { CATEGORIES, MAX_TEXT_LENGTH } from '../constants';
+import { useSettings } from '../state/SettingsContext';
 
 // 새 할 일 입력 폼. 기본 카테고리는 설정 페이지의 값(settings)을 따른다.
 // '할 일 입력하기' 버튼으로 열리므로 열리자마자 입력창에 포커스하고, 닫기는 부모가 처리한다.
-function TextInput({ onAdd, onClose, settings }) {
+function TextInput({ onAdd, onClose }) {
+  const { settings } = useSettings();
   const [text, setText] = useState('');
   const [category, setCategory] = useState(settings.defaultCategory);
   const inputRef = useRef(null);
