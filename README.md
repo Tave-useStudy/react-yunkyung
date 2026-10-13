@@ -1,6 +1,6 @@
 # react_yunkyung
 
-TAVE React 스터디 1주차 과제 — React 투두리스트
+TAVE React 스터디 1~5주차 과제 — 달력 + Kanban 보드 To-Do-List
 
 ## 주차별 키워드
 
