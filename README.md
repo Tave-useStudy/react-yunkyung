@@ -8,6 +8,9 @@ TAVE React 스터디 1~5주차 과제 — 달력 + Kanban 보드 To-Do-List
 
 ### 1주차 — React 기초 Hooks
 
+- React로 투두리스트를 처음 만들었다. 할 일 추가 / 완료 토글(취소선) / 삭제, 20자 글자 수 제한, Random User API로 프로필 불러오기.
+- `useState`로 목록과 입력값을, `useEffect`로 localStorage 저장을, `useRef`로 추가 후 입력창 포커스를 처리했다.
+
 | 키워드 | 한 줄 정리 | 투두리스트에서 |
 |---|---|---|
 | useState | 바뀌면 화면이 다시 그려지는 값 | 입력창 글자, 입력 폼 열림(`isAdding`) |
@@ -17,6 +20,9 @@ TAVE React 스터디 1~5주차 과제 — 달력 + Kanban 보드 To-Do-List
 | 조건부 렌더링 | 데이터 → 어떤 화면인지 선언 | `isAdding ? <TextInput /> : <button>` |
 
 ### 2주차 — React Router
+
+- 달력 기반 To-Do-List로 확장했다. 날짜별 할 일, 카테고리 / 정렬 / 필터 탭, 수정 모드와 세부사항(메모)을 추가했다.
+- React Router로 달력 / 상세(`/todos/:id`) / 설정 페이지를 나누고, 선택한 날짜는 URL(`?date=`)에 둬서 새로고침해도 유지된다.
 
 | 키워드 | 한 줄 정리 | 투두리스트에서 |
 |---|---|---|
@@ -29,6 +35,9 @@ TAVE React 스터디 1~5주차 과제 — 달력 + Kanban 보드 To-Do-List
 
 ### 3주차 — Custom Hook / 데이터
 
+- `App.jsx`에 몰려 있던 로직을 Custom Hook(`useTodos`, `useLocalStorage`, `useApiTodos`)으로 분리하고, 할 일 변경은 `useReducer` 하나로 모았다.
+- localStorage 저장 형식에 버전을 붙여 예전 데이터를 변환하고, JSONPlaceholder API에서 할 일을 불러오며 로딩 / 에러 / 재시도를 처리했다.
+
 | 키워드 | 한 줄 정리 | 투두리스트에서 |
 |---|---|---|
 | Custom Hook | state + 로직을 `use…` 함수로 분리 | `useTodos`, `useApiTodos` |
@@ -40,6 +49,9 @@ TAVE React 스터디 1~5주차 과제 — 달력 + Kanban 보드 To-Do-List
 
 ### 4주차 — Context / Composition / 상태 관리
 
+- Kanban 보드(`/board`)를 추가했다. 카드를 할 일 → 진행 중 → 완료로 옮기고, 카드를 누르면 상세 / 수정 모달이 열린다.
+- Context로 props drilling을 없애고 Board / Column / Card를 compound component로 설계했으며, 같은 인터페이스로 Context ↔ Zustand를 교체해 비교했다.
+
 | 키워드 | 한 줄 정리 | 투두리스트에서 |
 |---|---|---|
 | Context (createContext · use) | 중간을 건너뛰고 깊이 전달 → props drilling 제거 | `TodosContext`, `useTodosContext()` |
@@ -50,6 +62,9 @@ TAVE React 스터디 1~5주차 과제 — 달력 + Kanban 보드 To-Do-List
 | Modal | 열림 state는 부모, 모달은 닫기 요청만 | 카드 상세 / 수정, `selectedId` 하나로 |
 
 ### 5주차 — 성능 최적화
+
+- Profiler로 리렌더링을 먼저 측정하고, Context 분리 + `memo` / `useCallback`으로 낭비를 줄였다 (카드 이동 261 → 18회, 할 일 체크 79 → 11회).
+- 페이지와 카드 모달을 `lazy` + `Suspense`로 나눠 받고, 보드 검색에 `useTransition`을 적용했다. bundle analyzer로 쓰지 않는 zustand를 찾아 빼고 `react-router-dom` barrel import를 없앴다.
 
 | 키워드 | 한 줄 정리 | 투두리스트에서 |
 |---|---|---|
