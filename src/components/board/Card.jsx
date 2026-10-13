@@ -1,6 +1,6 @@
 import { createContext, use } from 'react';
-import { useTodosContext } from '../../state/TodosContext';
-import { useBoard } from './BoardContext';
+import { useTodoActions } from '../../state/TodosContext';
+import { useBoardActions } from './BoardContext';
 import { STATUSES } from '../../constants';
 import { getAdjacentStatus } from '../../utils/todo';
 
@@ -34,7 +34,7 @@ export function Root({ todo, children }) {
 // 제목을 누르면 상세 모달이 열린다
 export function Title() {
   const todo = useCard();
-  const { openCard } = useBoard();
+  const { openCard } = useBoardActions();
   return (
     <button type="button" className="card-title" onClick={() => openCard(todo.id)}>
       {todo.text}
@@ -60,7 +60,7 @@ export function Actions({ children }) {
 // 쓰는 쪽에서 무엇이 렌더링되는지 이름만 보고 알 수 있고, 한쪽만 빼는 것도 쉽다.
 export function MoveBack() {
   const todo = useCard();
-  const { moveTodo } = useTodosContext().actions;
+  const { moveTodo } = useTodoActions();
   const prev = getAdjacentStatus(STATUSES, todo.status, -1);
   if (!prev) return null;
   return (
@@ -76,7 +76,7 @@ export function MoveBack() {
 
 export function MoveForward() {
   const todo = useCard();
-  const { moveTodo } = useTodosContext().actions;
+  const { moveTodo } = useTodoActions();
   const next = getAdjacentStatus(STATUSES, todo.status, 1);
   if (!next) return null;
   return (

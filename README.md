@@ -779,3 +779,116 @@ App (useTodos)                                     main.jsx: <TodosProvider><Set
 - **불변성 유지** — 새 `moved` 액션도 `map`으로 새 배열을 만들고, 이미 그 상태면 기존 배열을 그대로 반환
 - **재사용** — 수정 폼(`TaskEditForm`), 입력 폼(`TextInput`), reducer / 저장 로직을 새 화면과 Zustand 구현이 그대로 쓴다
 - **검증** — `npm run lint` / `npm run build`(두 모드) 통과. Context / Zustand 모드 각각에서 v2 → v3 저장 형식 변환, reducer `moved` / `toggled`의 `done`·`status` 동기화, 보드의 컬럼·카드 배치, 기존 달력 / 상세 / 설정 페이지 렌더링을 Node에서 직접 실행해 확인
+
+
+---
+
+# TAVE React 스터디 5주차 과제
+
+To-Do-List **성능 최적화** — Profiler로 리렌더링 측정, memo / useMemo / useCallback, 코드 스플리팅(lazy + Suspense), useTransition, 번들 분석
+
+## 실행
+
+```bash
+npm run dev       # 개발 서버 — React DevTools Profiler로 측정
+npm run analyze   # 빌드 + dist/stats.html (번들 트리맵)
+```
+
+## 요구사항 체크
+
+| 요구사항 | 구현 | 위치 |
+|---|---|---|
+| Profiler로 리렌더 원인 확인 | ✅ 상호작용 5가지 측정, 원인별 정리 | 아래 [측정 결과](#측정-결과) |
+| 불필요한 렌더링 찾기 | ✅ TaskItem 11개 / 달력 31칸 / 카드 40장 / 카드 제목 40개 | 〃 |
+| React.memo 적용 | ✅ 측정에서 낭비가 보인 3곳만 | `TaskItem`, `CalendarDay`, `board/KanbanCard` |
+| useMemo 적용 | ✅ Context value (state / actions / filter 분리) | `state/*Provider.jsx`, `board/BoardProvider.jsx` |
+| useCallback 적용 | ✅ memo(CalendarDay) 31칸에 넘기는 `selectDate` | `pages/MainPage.jsx` |
+| React.lazy로 컴포넌트 분리 | ✅ 카드 모달 — 카드를 처음 누를 때 로드 | `pages/BoardPage.jsx` |
+| Suspense 적용 | ✅ `Layout`의 `<Outlet />`(헤더 유지), 모달 자리 | `components/Layout.jsx`, `pages/BoardPage.jsx` |
+| 페이지별 번들 분리 | ✅ 보드 / 상세 / 설정 페이지 lazy (첫 화면 달력은 바로) | `App.jsx` |
+| useTransition — 검색 / 필터 | ✅ 보드 검색창 + 카테고리 필터 | `board/BoardSearch.jsx`, `board/BoardProvider.jsx` |
+| non-urgent 업데이트 분리 | ✅ 입력창 값(급함) ↔ 카드 목록 필터(transition) | 〃 |
+| bundle analyzer 사용 | ✅ `rollup-plugin-visualizer` → 쓰지 않는 zustand 발견 / 제거 | `vite.config.js` |
+| barrel import 제거 | ✅ `react-router-dom`(= `export * from "react-router"`) → `react-router` | 8개 파일, `package.json` |
+| (선택) TanStack Query | — 이번에는 하지 않음 | |
+
+## 화면에서 달라진 점
+
+- 보드 위에 **카드 검색창**과 **카테고리 필터**가 생겼다. 제목 / 세부사항에서 찾고, 계산 중에는 보드가 살짝 흐려진다
+- 보드 / 상세 / 설정 페이지에 처음 들어갈 때 잠깐 "불러오는 중…"이 보일 수 있다 (페이지 코드를 그때 받아 옴). 헤더는 그대로
+- 그 밖의 동작은 4주차와 같다 — 최적화는 **보이는 결과는 그대로, 렌더링 횟수만** 줄이는 작업
+
+## 측정 결과
+
+할 일 40개(오늘 10개)를 넣고, 상호작용 하나에 **렌더링된 컴포넌트 수**를 셌다 (Profiler와 같은 방식: React가 커밋할 때 실제로 렌더링된 컴포넌트).
+
+| 상호작용 | 전 | 후 | 원인 → 해결 |
+|---|---|---|---|
+| 메인: 할 일 1개 체크 | 79회 (TaskItem 11, CalendarDay 31) | **11회** (TaskItem 1, CalendarDay 1) | todos가 든 Context를 버튼까지 구독 → Context 분리 + `memo(TaskItem)` / 달력 칸에 새 객체·새 함수 → 원시값 props + `memo` + `useCallback` |
+| 메인: 날짜 선택 | 47회 (CalendarDay 31) | **18회** (CalendarDay 2) | 부모 렌더링 + 칸마다 새 `onSelect` 함수 → `memo(CalendarDay)` + `useCallback` |
+| 메인: 입력창에 한 글자 | 2회 | 2회 | 이미 최소 — 손대지 않음 |
+| 보드: 카드 1장 이동 | 261회 (카드 40장 × 조각 5개) | **18회** (카드 1장) | `moveTodo`만 쓰는 버튼이 todos Context 구독 → Context 분리 + `memo(KanbanCard)` |
+| 보드: 모달 열기 | 50회 (Card.Title 40) | **12회** (Card.Title 0) | `openCard`만 쓰는 카드 제목이 `selectedId` Context 구독 → Board Context 3개로 분리 |
+
+**과정에서 찾은 것**
+- memo를 건 뒤 다시 측정했더니 할 일 체크 시 **달력 20칸이 여전히 렌더링**됐다. `countByDate`가 날짜마다 새 `{ all, done }` 객체를 만들기 때문 → 객체 대신 숫자 두 개(`total`, `done`)를 넘겨 해결
+- 그러자 `countMap`을 감쌌던 `useMemo`가 필요 없어져서 **뺐다** (숫자 props라 Map이 새로 생겨도 memo가 동작)
+- `setSearchParams`는 URL이 바뀔 때마다 새 함수라 `useCallback`이 소용없었다 → 같은 페이지에서 바뀌지 않는 `navigate` 사용
+
+**직접 확인하기 (React DevTools Profiler)**
+1. ⚙ → Profiler → "Record why each component rendered while profiling" 켜기
+2. 녹화 → 위 상호작용 하나 → 정지 → Flamegraph에서 칠해진 `TaskItem` / `CalendarDay` / `KanbanCard` 수와 "Why did this render?" 확인
+
+## 번들 결과
+
+```
+전 (chunk 1개)                               후 (chunk 6개)
+index.js  285.35 kB │ gzip 90.31 kB          index.js           275.64 kB │ gzip 88.31 kB  ← 첫 화면
+                                             BoardPage.js         5.22 kB │ gzip  1.89 kB
+                                             CardModal.js         2.80 kB │ gzip  1.21 kB
+                                             TodoDetailPage.js    1.92 kB │ gzip  0.86 kB
+                                             TaskEditForm.js      1.43 kB │ gzip  0.80 kB  ← 모달·상세 공용
+                                             SettingsPage.js      1.24 kB │ gzip  0.63 kB
+```
+
+| analyzer로 본 것 | 전 | 후 |
+|---|---|---|
+| zustand (Context 모드 빌드) | 포함 1.7 kB | **빠짐** — `todosStore.js`의 top-level `subscribe()`(side effect) 때문에 번들러가 못 지웠음 → 구독을 Provider의 `useEffect`로 옮기고 `create`에 `/* @__PURE__ */` |
+| react-router | 92.7 kB | 92.6 kB — barrel 제거로 크기는 거의 그대로 (빌드 시 트리 셰이킹이 이미 처리). 개발 서버 로딩과 import 명확성 개선 |
+| react-dom | 524.2 kB | 524.2 kB — 첫 화면 JS의 대부분. 앱 코드가 작아 스플리팅으로 줄어든 양(약 10 kB)은 크지 않다 |
+
+(analyzer 표의 크기는 minify 전 크기)
+
+## 구조
+
+```
+src/
+├── App.jsx                         MainPage만 바로, Board / TodoDetail / Settings는 lazy
+├── state/
+│   ├── TodosContext.js             TodosStateContext({ todos }) + TodosActionsContext({ actions, meta })
+│   │                               useTodosState() / useTodoActions() / useTodosMeta() / useTodosContext()
+│   ├── ReducerTodosProvider.jsx    두 Context에 각각 useMemo한 value
+│   ├── ZustandTodosProvider.jsx    〃 + 저장 구독을 useEffect 안에서
+│   └── todosStore.js               side effect 없음 (/* @__PURE__ */ create)
+├── pages/
+│   ├── MainPage.jsx                selectDate = useCallback(navigate …)
+│   └── BoardPage.jsx               BoardSearch + lazy(CardModal) + CardModalSlot
+└── components/
+    ├── Layout.jsx                  <Suspense>로 <Outlet /> 감싸기
+    ├── TaskItem.jsx                memo, useTodoActions()
+    ├── CalendarDay.jsx             memo, props = dateKey / total / done / onSelect
+    └── board/
+        ├── BoardContext.js         BoardState({ selectedId, isPending }) / BoardFilter({ filter }) / BoardActions
+        ├── BoardProvider.jsx       useTransition — applyFilter = startTransition(setFilter)
+        ├── BoardSearch.jsx         입력창 값(draft)은 바로, 목록 필터는 applyFilter로
+        ├── KanbanCard.jsx          memo — Card 조각 조립
+        └── Column.jsx              useBoardFilter()로 검색 결과 적용
+```
+
+## 과제 룰 체크
+
+- **무분별한 memo 사용 금지** — memo는 측정에서 낭비가 보인 `TaskItem`, `CalendarDay`, `KanbanCard` 3곳만. 입력창(이미 2회), 컬럼(3개, 매번 실제로 바뀜)에는 걸지 않았고, 필요 없어진 `countMap`의 useMemo는 뺐다
+- **Profiler 기반으로 최적화** — 측정 → 원인 → 수정 → 재측정. 재측정으로 "memo를 걸었는데도 20칸이 렌더링되는" 문제를 찾아 고쳤다
+- **코드 스플리팅 최소 1회 적용** — 라우트 3개 + 컴포넌트 1개 → chunk 6개
+- **barrel import 금지** — `react-router-dom` 제거, 프로젝트에 재수출(`index.js`) 파일 없음
+- **검증** — `npm run lint` / `npm run build` 통과 (Context / Zustand 두 모드). 헤드리스 Chrome에서 카드 이동, lazy 모달 열기 / 수정 / ESC / 바깥 클릭, 검색 + 카테고리 필터, lazy 페이지(설정 / 상세) 진입, Zustand 모드 저장 / 새로고침 유지를 직접 실행해 확인

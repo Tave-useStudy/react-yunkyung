@@ -1,11 +1,11 @@
 import useApiTodos from '../hooks/useApiTodos';
 import { API_PAGE_SIZE } from '../api/todos';
-import { useTodosContext } from '../state/TodosContext';
+import { useTodosState } from '../state/TodosContext';
 
 // JSONPlaceholder에서 할 일을 가져와 선택한 날짜에 추가한다.
 // 버튼 → (로딩 스피너) → 결과 문구 / (에러 메시지 + 다시 시도)
 function ApiImport({ onImport }) {
-  const { todos } = useTodosContext().state;
+  const { todos } = useTodosState();
   const { status, count, message, load } = useApiTodos();
 
   const handleLoad = async () => {

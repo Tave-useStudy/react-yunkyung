@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { CATEGORIES, SORT_OPTIONS } from '../constants';
 import { useTodosContext } from '../state/TodosContext';
 import { useSettings } from '../state/SettingsContext';

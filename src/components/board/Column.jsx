@@ -1,18 +1,25 @@
-import * as Card from './Card';
+import KanbanCard from './KanbanCard';
 import { ColumnContext, useColumn } from './ColumnContext';
-import { useTodosContext } from '../../state/TodosContext';
+import { useBoardFilter } from './BoardContext';
+import { useTodosState } from '../../state/TodosContext';
 import { useSettings } from '../../state/SettingsContext';
 import { STATUS_LABEL } from '../../constants';
-import { sortTodos } from '../../utils/todo';
+import { searchTodos, sortTodos } from '../../utils/todo';
 
 // 상태 하나(할 일 / 진행 중 / 완료)의 컬럼 (compound component).
 // Column.Root가 자기 상태의 카드만 골라 Context로 내려주고, 조각들은 필요한 것만 꺼내 쓴다.
 export function Root({ status, children }) {
-  const { todos } = useTodosContext().state;
+  const { todos } = useTodosState();
   const { settings } = useSettings();
+  const { filter } = useBoardFilter();
   // 카드 목록은 todos에서 계산되는 derived state (따로 state로 들고 있지 않는다)
+  // useMemo는 쓰지 않았다: 이 컴포넌트가 다시 렌더링되는 건 거의 todos / filter가 바뀌었을 때라
+  // 어차피 다시 계산해야 하고, 할 일 수십 개를 거르는 비용은 Profiler에서 무시할 만큼 작았다.
   const cards = sortTodos(
-    todos.filter((todo) => todo.status === status),
+    searchTodos(
+      todos.filter((todo) => todo.status === status),
+      filter
+    ),
     settings.defaultSort
   );
 
@@ -43,14 +50,7 @@ export function Cards() {
     <ul className="column-cards">
       {cards.map((todo) => (
         <li key={todo.id}>
-          <Card.Root todo={todo}>
-            <Card.Title />
-            <Card.Meta />
-            <Card.Actions>
-              <Card.MoveBack />
-              <Card.MoveForward />
-            </Card.Actions>
-          </Card.Root>
+          <KanbanCard todo={todo} />
         </li>
       ))}
     </ul>

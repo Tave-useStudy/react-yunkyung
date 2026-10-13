@@ -43,6 +43,19 @@ export function countByStatus(todos) {
   return { all: todos.length, done, active: todos.length - done };
 }
 
+// 보드 검색: 제목 / 세부사항에 글자가 들어 있고, 카테고리가 맞는 할 일만
+export function searchTodos(todos, { text, category }) {
+  const keyword = text.trim().toLowerCase();
+  if (keyword === '' && category === CATEGORY_ALL) return todos;
+  return todos.filter((todo) => {
+    if (category !== CATEGORY_ALL && todo.category !== category) return false;
+    if (keyword === '') return true;
+    return (
+      todo.text.toLowerCase().includes(keyword) || todo.memo.toLowerCase().includes(keyword)
+    );
+  });
+}
+
 // Kanban 카드 이동: 지금 상태의 바로 앞(-1) / 뒤(+1) 상태. 맨 끝이면 null
 export function getAdjacentStatus(statuses, status, step) {
   const index = statuses.findIndex((s) => s.value === status);

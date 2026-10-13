@@ -34,3 +34,6 @@ export const STATUSES = [
 ];
 
 export const STATUS_LABEL = Object.fromEntries(STATUSES.map((s) => [s.value, s.label]));
+
+// 5주차: 보드 검색 / 카테고리 필터의 초기값
+export const EMPTY_FILTER = { text: '', category: CATEGORY_ALL };

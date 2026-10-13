@@ -32,14 +32,16 @@ function Calendar({ month, selectedKey, countMap, onSelectDate, onMoveMonth, onT
         {cells.map((date, i) => {
           if (date === null) return <div key={`empty-${i}`} />;
           const key = toDateKey(date);
+          const count = countMap.get(key);
           return (
             <CalendarDay
               key={key}
-              date={date}
+              dateKey={key}
               isToday={key === today}
               isSelected={key === selectedKey}
-              count={countMap.get(key)}
-              onSelect={() => onSelectDate(key)}
+              total={count?.all ?? 0}
+              done={count?.done ?? 0}
+              onSelect={onSelectDate}
             />
           );
         })}

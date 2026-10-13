@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import TextInput from '../TextInput';
 import { useColumn } from './ColumnContext';
-import { useTodosContext } from '../../state/TodosContext';
+import { useTodoActions } from '../../state/TodosContext';
 import { todayKey } from '../../utils/date';
 
 // 컬럼에 카드 추가. 어느 컬럼의 Footer에 넣느냐에 따라 그 상태로 추가된다.
@@ -9,7 +9,7 @@ import { todayKey } from '../../utils/date';
 function AddCardForm() {
   const [isAdding, setIsAdding] = useState(false);
   const { status } = useColumn();
-  const { addTodo } = useTodosContext().actions;
+  const { addTodo } = useTodoActions();
 
   if (!isAdding) {
     return (

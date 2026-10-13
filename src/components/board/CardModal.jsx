@@ -1,16 +1,18 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import * as Modal from '../Modal';
 import TaskEditForm from '../TaskEditForm';
-import { useBoard } from './BoardContext';
-import { useTodosContext } from '../../state/TodosContext';
+import { useBoardActions, useBoardState } from './BoardContext';
+import { useTodoActions, useTodosState } from '../../state/TodosContext';
 import { STATUSES } from '../../constants';
 
 // 선택된 카드의 상세 / 수정 모달.
 // 열기 / 닫기는 BoardContext의 selectedId 하나로 관리한다 (null이면 닫힘).
+// 5주차: BoardPage가 lazy()로 불러오고, 카드를 골랐을 때만 그린다.
 function CardModal() {
-  const { selectedId, closeCard } = useBoard();
-  const { todos } = useTodosContext().state;
+  const { selectedId } = useBoardState();
+  const { closeCard } = useBoardActions();
+  const { todos } = useTodosState();
   // 카드가 삭제되면 todo가 undefined → 모달이 저절로 닫힌다
   const todo = todos.find((t) => t.id === selectedId);
 
@@ -34,8 +36,8 @@ function CardModalContent({ todo }) {
 }
 
 function CardDetailView({ todo, onEdit }) {
-  const { closeCard } = useBoard();
-  const { moveTodo, deleteTodo } = useTodosContext().actions;
+  const { closeCard } = useBoardActions();
+  const { moveTodo, deleteTodo } = useTodoActions();
 
   const handleDelete = () => {
     deleteTodo(todo.id);
@@ -86,7 +88,7 @@ function CardDetailView({ todo, onEdit }) {
 }
 
 function CardEditView({ todo, onDone }) {
-  const { updateTodo } = useTodosContext().actions;
+  const { updateTodo } = useTodoActions();
 
   const handleSave = (changes) => {
     updateTodo(todo.id, changes);
