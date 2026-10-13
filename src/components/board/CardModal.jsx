@@ -4,7 +4,7 @@ import * as Modal from '../Modal';
 import TaskEditForm from '../TaskEditForm';
 import { useBoard } from './BoardContext';
 import { useTodosContext } from '../../state/TodosContext';
-import { STATUSES, STATUS_LABEL } from '../../constants';
+import { STATUSES } from '../../constants';
 
 // 선택된 카드의 상세 / 수정 모달.
 // 열기 / 닫기는 BoardContext의 selectedId 하나로 관리한다 (null이면 닫힘).
@@ -60,8 +60,6 @@ function CardDetailView({ todo, onEdit }) {
           ))}
         </div>
         <dl className="detail-info">
-          <dt>상태</dt>
-          <dd>{STATUS_LABEL[todo.status]}</dd>
           <dt>날짜</dt>
           <dd>{todo.date}</dd>
           <dt>카테고리</dt>
@@ -77,7 +75,7 @@ function CardDetailView({ todo, onEdit }) {
         <button type="button" onClick={onEdit}>
           수정
         </button>
-        <button type="button" onClick={handleDelete}>
+        <button type="button" className="danger" onClick={handleDelete}>
           삭제
         </button>
         <Link to={`/todos/${todo.id}`}>상세 페이지</Link>

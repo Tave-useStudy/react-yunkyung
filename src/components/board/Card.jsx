@@ -64,7 +64,11 @@ export function MoveBack() {
   const prev = getAdjacentStatus(STATUSES, todo.status, -1);
   if (!prev) return null;
   return (
-    <button type="button" className="move-btn" onClick={() => moveTodo(todo.id, prev.value)}>
+    <button
+      type="button"
+      className={`move-btn back to-${prev.value}`}
+      onClick={() => moveTodo(todo.id, prev.value)}
+    >
       ← {prev.label}
     </button>
   );
@@ -76,7 +80,11 @@ export function MoveForward() {
   const next = getAdjacentStatus(STATUSES, todo.status, 1);
   if (!next) return null;
   return (
-    <button type="button" className="move-btn" onClick={() => moveTodo(todo.id, next.value)}>
+    <button
+      type="button"
+      className={`move-btn forward to-${next.value}`}
+      onClick={() => moveTodo(todo.id, next.value)}
+    >
       {next.label} →
     </button>
   );

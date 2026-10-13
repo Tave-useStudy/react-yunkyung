@@ -1,0 +1,662 @@
+/* =====================================================================
+   4주차 디자인 정리
+   - 색: 종이 같은 배경 + 진한 잉크 글자 + 상태별 색 3가지(할 일 / 진행 중 / 완료)
+   - 상태 색은 보드 컬럼, 카드 왼쪽 띠, 이동 버튼, 모달 상태 버튼에 똑같이 쓴다
+     → 색만 봐도 어느 상태인지 알 수 있게
+   - App.css 뒤에 불러와서 기존 규칙을 덮어쓴다
+   - 항상 화이트 모드 (시스템이 다크 모드여도 밝게)
+   ===================================================================== */
+
+:root {
+  --sans: 'IBM Plex Sans KR', system-ui, sans-serif;
+  --heading: 'IBM Plex Sans KR', system-ui, sans-serif;
+
+  --bg: #f7f7f5;
+  --surface: #ffffff;
+  --surface-2: #efeeea;
+  --text: #5c5a55;
+  --text-h: #1d1c1a;
+  --border: #e2e0da;
+  --code-bg: #efeeea;
+
+  --accent: #2f4bd8;
+  --accent-bg: rgba(47, 75, 216, 0.09);
+  --accent-border: rgba(47, 75, 216, 0.45);
+  --danger: #d43d3d;
+
+  --todo: #2f4bd8;
+  --todo-bg: rgba(47, 75, 216, 0.09);
+  --doing: #d98a00;
+  --doing-bg: rgba(217, 138, 0, 0.12);
+  --done: #24945f;
+  --done-bg: rgba(36, 148, 95, 0.12);
+
+  --radius: 12px;
+  --shadow-card: 0 1px 2px rgba(29, 28, 26, 0.06), 0 1px 0 rgba(29, 28, 26, 0.04);
+  --shadow-lift: 0 10px 30px -10px rgba(29, 28, 26, 0.25);
+
+  color-scheme: light;   /* index.css의 'light dark'를 덮어써서 입력창·스크롤바도 밝게 */
+  font-size: 16px;
+  letter-spacing: 0;
+}
+
+/* ---------- 바탕 ---------- */
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  line-height: 1.55;
+}
+
+#root {
+  width: 100%;
+  border-inline: none;
+  text-align: left;
+}
+
+.app {
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 0 16px 3rem;
+  box-sizing: border-box;
+}
+
+.app:has(.board) {
+  max-width: 1120px;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--heading);
+  color: var(--text-h);
+  letter-spacing: -0.01em;
+}
+
+/* ---------- 헤더 / 메뉴 ---------- */
+
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 0 -16px 1.5rem;
+  padding: 0.9rem 16px;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border);
+}
+
+.app-header h1 {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.app-nav {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--surface-2);
+}
+
+.app-nav a {
+  padding: 0.35rem 0.95rem;
+  border-radius: 999px;
+  color: var(--text);
+  font-size: 0.92rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: background 0.15s, color 0.15s;
+}
+
+.app-nav a:hover {
+  color: var(--text-h);
+}
+
+.app-nav a.active {
+  background: var(--surface);
+  color: var(--text-h);
+  box-shadow: var(--shadow-card);
+}
+
+.app-footer {
+  margin-top: 3rem;
+  font-size: 0.78rem;
+  text-align: center;
+  opacity: 0.6;
+}
+
+/* ---------- 공통 버튼 / 입력 ---------- */
+
+/* 클래스가 없는 버튼(수정, 삭제, 닫기, 오늘, 추가 …)은 전부 같은 모양으로 */
+button:not([class]) {
+  padding: 0.45rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text-h);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+button:not([class]):hover:not(:disabled) {
+  border-color: var(--text);
+}
+
+button:not([class]):disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* 폼의 제출 버튼은 강조 */
+form button[type='submit'] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+form button[type='submit']:hover:not(:disabled) {
+  border-color: var(--accent);
+  filter: brightness(1.08);
+}
+
+input[type='text'],
+input[type='date'],
+select,
+textarea {
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text-h);
+  font: inherit;
+  font-size: 0.95rem;
+}
+
+input[type='text']:focus,
+input[type='date']:focus,
+select:focus,
+textarea:focus {
+  outline: 2px solid var(--accent-border);
+  outline-offset: 0;
+  border-color: var(--accent);
+}
+
+input[type='checkbox'] {
+  width: 1.05rem;
+  height: 1.05rem;
+  accent-color: var(--done);
+  cursor: pointer;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.primary-btn {
+  border-radius: 10px;
+  background: var(--accent);
+}
+
+.secondary-btn {
+  border-color: var(--border);
+  background: var(--surface);
+  color: var(--text-h);
+  font-size: 0.9rem;
+}
+
+.secondary-btn:hover {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+.badge {
+  padding: 0.1rem 0.5rem;
+  border: none;
+  background: var(--surface-2);
+  color: var(--text);
+  font-weight: 500;
+}
+
+.tab.active {
+  color: var(--text-h);
+  border-bottom-color: var(--text-h);
+  font-weight: 600;
+}
+
+.count.over,
+.warning {
+  color: var(--danger);
+}
+
+/* ---------- 달력 ---------- */
+
+.calendar,
+.day-todos,
+.detail,
+.settings {
+  padding: 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+
+.day-todos {
+  margin-top: 1rem;
+}
+
+.calendar-head {
+  margin: 0 0 1rem;
+}
+
+.nav-btn {
+  background: var(--surface);
+}
+
+.calendar-day {
+  border-color: transparent;
+  background: var(--bg);
+}
+
+.calendar-day:hover {
+  border-color: var(--accent-border);
+}
+
+.calendar-day.today {
+  background: var(--accent-bg);
+  border-color: transparent;
+}
+
+.calendar-day.today .day-num {
+  color: var(--accent);
+}
+
+.calendar-day.selected {
+  outline: none;
+  border-color: var(--accent);
+  background: var(--surface);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.day-count {
+  background: var(--todo);
+}
+
+.day-count.all-done {
+  background: var(--done-bg);
+  color: var(--done);
+  border: none;
+}
+
+.calendar-weekday:first-child,
+.calendar-day.sun .day-num {
+  color: var(--danger);
+}
+
+.task {
+  border-bottom-color: var(--border);
+}
+
+/* ---------- 보드 ---------- */
+
+.board-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.25rem 1rem;
+}
+
+.board-head h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.board-hint {
+  font-size: 0.88rem;
+}
+
+.board-hint strong {
+  color: var(--text-h);
+  font-weight: 600;
+}
+
+.board {
+  margin-top: 1.25rem;
+  gap: 1rem;
+}
+
+.column {
+  gap: 0.6rem;
+  padding: 0.9rem;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.column-todo {
+  --status: var(--todo);
+  --status-bg: var(--todo-bg);
+}
+
+.column-doing {
+  --status: var(--doing);
+  --status-bg: var(--doing-bg);
+}
+
+.column-done {
+  --status: var(--done);
+  --status-bg: var(--done-bg);
+}
+
+.column-header {
+  padding: 0 0.15rem 0.2rem;
+}
+
+.column-header h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.98rem;
+  font-weight: 700;
+}
+
+/* 상태 색 점 */
+.column-header h3::before {
+  content: '';
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  background: var(--status);
+}
+
+.column-header .tab-count {
+  min-width: 1.6rem;
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  background: var(--status-bg);
+  color: var(--status);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-align: center;
+  opacity: 1;
+}
+
+.column-cards {
+  gap: 0.55rem;
+}
+
+.column-empty {
+  padding: 1.25rem 0.5rem;
+  border: 1.5px dashed var(--border);
+  border-radius: 10px;
+  text-align: center;
+  opacity: 1;
+}
+
+.card {
+  position: relative;
+  gap: 0.5rem;
+  padding: 0.8rem 0.85rem 0.75rem 1.05rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+  transition: transform 0.15s, box-shadow 0.15s;
+  animation: card-in 0.25s ease-out;
+}
+
+/* 카드 왼쪽 상태 색 띠 */
+.card::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: var(--status);
+}
+
+.card:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-lift);
+}
+
+@keyframes card-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card {
+    animation: none;
+    transition: none;
+  }
+}
+
+.card-title {
+  font-size: 0.98rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.card-title:hover {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.card-done .card-title {
+  opacity: 0.55;
+}
+
+.card-meta {
+  font-size: 0.78rem;
+}
+
+.card-date {
+  opacity: 0.8;
+}
+
+.card-actions {
+  padding-top: 0.15rem;
+}
+
+/* 뒤로 가기는 왼쪽, 앞으로 가기는 오른쪽에 고정 (한쪽만 있어도 위치가 바뀌지 않게) */
+.card-actions .move-btn:last-child {
+  margin-left: 0;
+}
+
+.card-actions .move-btn.forward {
+  margin-left: auto;
+}
+
+/* 이동 버튼: 옮겨 갈 상태의 색을 쓴다 */
+.move-btn {
+  padding: 0.28rem 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.move-btn:hover {
+  border-color: var(--text);
+  color: var(--text-h);
+}
+
+.move-btn.to-todo { --to: var(--todo); --to-bg: var(--todo-bg); }
+.move-btn.to-doing { --to: var(--doing); --to-bg: var(--doing-bg); }
+.move-btn.to-done { --to: var(--done); --to-bg: var(--done-bg); }
+
+/* 앞으로 가기(주요 동작)는 색을 채운다 */
+.move-btn.forward {
+  border-color: transparent;
+  background: var(--to-bg);
+  color: var(--to);
+}
+
+.move-btn.forward:hover {
+  border-color: var(--to);
+  color: var(--to);
+}
+
+.add-card-btn {
+  border-style: dashed;
+  background: transparent;
+  color: var(--text);
+}
+
+.column-footer .text-input {
+  padding: 0.75rem;
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+/* ---------- 모달 ---------- */
+
+.modal {
+  width: min(520px, calc(100vw - 2rem));
+  border: none;
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.45);
+}
+
+.modal[open] {
+  animation: modal-in 0.18s ease-out;
+}
+
+.modal::backdrop {
+  background: rgba(20, 20, 18, 0.45);
+  backdrop-filter: blur(2px);
+}
+
+@keyframes modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal[open] {
+    animation: none;
+  }
+}
+
+.modal-content {
+  padding: 1.5rem;
+}
+
+.modal-title {
+  margin-bottom: 1rem;
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+/* 상태 바꾸기: 세 칸짜리 선택 버튼 */
+.status-picker {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  margin-bottom: 1.1rem;
+  padding: 4px;
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+
+.status-picker .tab {
+  padding: 0.45rem;
+  border: none;
+  border-radius: 7px;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.status-picker .tab:nth-child(1) { --status: var(--todo); }
+.status-picker .tab:nth-child(2) { --status: var(--doing); }
+.status-picker .tab:nth-child(3) { --status: var(--done); }
+
+.status-picker .tab.active {
+  background: var(--surface);
+  color: var(--status);
+  box-shadow: var(--shadow-card);
+}
+
+.modal .detail-info {
+  margin: 0 0 1rem;
+  font-size: 0.92rem;
+}
+
+.modal .memo {
+  background: var(--bg);
+  border: none;
+  font-size: 0.92rem;
+}
+
+.modal-footer {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.modal-footer a {
+  color: var(--accent);
+  font-size: 0.9rem;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.modal-footer a:hover {
+  text-decoration: underline;
+}
+
+.modal-footer .danger {
+  padding: 0.45rem 0.9rem;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: none;
+  color: var(--danger);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.modal-footer .danger:hover {
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+}
+
+/* ---------- 좁은 화면 ---------- */
+
+@media (max-width: 760px) {
+  .board-head h2 {
+    font-size: 1.25rem;
+  }
+
+  .app-header h1 {
+    font-size: 1.1rem;
+  }
+}

@@ -10,6 +10,12 @@ import BoardProvider from '../components/board/BoardProvider';
 function BoardPage() {
   return (
     <BoardProvider>
+      <div className="board-head">
+        <h2>보드</h2>
+        <p className="board-hint">
+          <strong>카드 제목</strong>을 누르면 상세 보기 · <strong>버튼</strong>으로 다음 단계로 이동
+        </p>
+      </div>
       <Board>
         <Column.Root status="todo">
           <Column.Header />
